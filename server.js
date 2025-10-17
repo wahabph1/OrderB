@@ -7,21 +7,22 @@ const connectDB = require('./db/db');
 const app = express();
 
 // ***************************************************************
-// 🔑 CRITICAL FIX: DATABASE CONNECTION KO SIRF EK BAAR KARNA HAI
-// connectDB() ko yahan call karne se yeh sirf ek baar chalta hai
-// jab Vercel function initialize hota hai.
+// 🔑 CRITICAL FIX: DATABASE CONNECTION KO SIRF EK BAAR CALL KIYA GAYA HAI
+// Yeh Vercel par server ko crash hone se bachayega aur 500 error theek karega.
 connectDB(); 
 // ***************************************************************
 
 // NOTE: Purana Database Middleware (app.use(async (req, res, next) => { ... })) HATA DIYA GAYA HAI.
 
 // ***************************************************************
-// CORS Configuration 
+// CORS Configuration (Naye URLs Shamil Hain)
 // ***************************************************************
 const allowedOrigins = [
     'http://localhost:3000', 
+    // Purana deployed URL
     'https://order-tracking-frontend.vercel.app', 
-    'https://order-tracking-system-np42.vercel.app' 
+    // Aapka latest deployed frontend URL
+    'https://order-f.vercel.app' 
 ];
 
 app.use(cors({
@@ -45,15 +46,10 @@ app.get('/', (req, res) => {
     res.status(200).send('Order Tracking System Backend is fully operational and healthy!');
 });
 
-// Test Route
-app.get('/hello', (req, res) => {
-    res.send('Order Tracking Backend is running!');
-});
-
 // Order Routes
 const orderRoutes = require('./routes/orderRoutes'); 
-// CRITICAL FIX: Express ko batao ki /orders request ko root '/' ki tarah treat kare.
-app.use('/', orderRoutes); 
+// Yeh line Vercel routing aur /api/orders path ko handle karti hai.
+app.use('/api/orders', orderRoutes); 
 
 // CRITICAL: Express app ko export karna zaroori hai
 module.exports = app;
