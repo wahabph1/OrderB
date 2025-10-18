@@ -19,10 +19,9 @@ connectDB();
 // ***************************************************************
 const allowedOrigins = [
     'http://localhost:3000', 
-    // Purana deployed URL
     'https://order-tracking-frontend.vercel.app', 
-    // Aapka latest deployed frontend URL
-    'https://order-f.vercel.app' 
+    'https://order-f.vercel.app',
+    'https://order-f-p2r4.vercel.app'
 ];
 
 app.use(cors({
