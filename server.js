@@ -48,7 +48,11 @@ app.get('/', (req, res) => {
 // Order Routes
 const orderRoutes = require('./routes/orderRoutes'); 
 // Yeh line Vercel routing aur /api/orders path ko handle karti hai.
-app.use('/api/orders', orderRoutes); 
+app.use('/api/orders', orderRoutes);
+
+// Profit Calculator Routes
+const profitRoutes = require('./routes/profitRoutes');
+app.use('/api/profit', profitRoutes);
 
 // CRITICAL: Express app ko export karna zaroori hai
 module.exports = app;
