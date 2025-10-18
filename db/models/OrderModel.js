@@ -21,8 +21,8 @@ const OrderSchema = new mongoose.Schema({
     owner: {
         type: String,
         required: true,
-        // Sirf in teen owners mein se koi ek hi ho sakta hai
-        enum: ['Emirate Essentials', 'Ahsan', 'Habibi Tools']
+        // Sirf in char owners mein se koi ek hi ho sakta hai
+        enum: ['Emirate Essentials', 'Ahsan', 'Habibi Tools', 'Wahab']
     }
 }, { timestamps: true }); // yeh automatic 'createdAt' aur 'updatedAt' add kar dega
 
