@@ -112,4 +112,14 @@ router.get('/deleted', async (req, res) => {
     }
 });
 
+// Delete ALL deleted orders
+router.delete('/deleted', async (_req, res) => {
+    try {
+        const result = await DeletedOrder.deleteMany({});
+        res.json({ deleted: result?.deletedCount ?? 0 });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 module.exports = router;
