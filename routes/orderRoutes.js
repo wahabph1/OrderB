@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../db/models/OrderModel');
+const DeletedOrder = require('../db/models/DeletedOrder');
 
 // 1. READ: Saare Orders Lao (Filtering aur Searching Support ke saath)
 router.get('/', async (req, res) => {
@@ -66,12 +67,46 @@ router.put('/:id', async (req, res) => {
 // 4. DELETE: Order Delete Karo
 router.delete('/:id', async (req, res) => {
     try {
-        const result = await Order.findByIdAndDelete(req.params.id);
-        
-        if (!result) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-        res.json({ message: 'Order successfully deleted' });
+        const existing = await Order.findById(req.params.id);
+        if (!existing) return res.status(404).json({ message: 'Order not found' });
+
+        // Archive into DeletedOrder
+        await DeletedOrder.create({
+            originalId: existing._id,
+            serialNumber: existing.serialNumber,
+            owner: existing.owner,
+            orderDate: existing.orderDate,
+            deliveryStatus: existing.deliveryStatus,
+            deletedAt: new Date(),
+            snapshot: existing.toObject(),
+        });
+
+        await Order.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Order deleted and archived' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// List deleted orders (optional filters: owner, search; optional pagination)
+router.get('/deleted', async (req, res) => {
+    try {
+        const { owner, search, page, limit } = req.query;
+        const q = {};
+        if (owner && owner !== 'All') q.owner = owner;
+        if (search) q.serialNumber = { $regex: search, $options: 'i' };
+
+        const pg = Math.max(parseInt(page || '1', 10), 1);
+        const lm = Math.min(Math.max(parseInt(limit || '1000', 10), 1), 5000);
+
+        const items = await DeletedOrder
+            .find(q)
+            .sort({ deletedAt: -1 })
+            .skip((pg - 1) * lm)
+            .limit(lm)
+            .lean();
+
+        res.json(items);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
