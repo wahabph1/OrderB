@@ -4,6 +4,25 @@ const router = express.Router();
 const Order = require('../db/models/OrderModel');
 const DeletedOrder = require('../db/models/DeletedOrder');
 
+// Helper: Drop any legacy UNIQUE indexes on serialNumber that block Wahab duplicates
+async function purgeLegacySerialUnique() {
+  try {
+    const indexes = await Order.collection.indexes();
+    for (const idx of indexes) {
+      if (idx && idx.unique && idx.key && idx.key.serialNumber === 1) {
+        try {
+          await Order.collection.dropIndex(idx.name);
+          console.log('Dropped legacy unique index on serialNumber:', idx.name);
+        } catch (e) {
+          console.error('Failed dropping legacy serial index', idx.name, (e && e.message) || e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Index inspection error:', (e && e.message) || e);
+  }
+}
+
 // 1. READ: Saare Orders Lao (Filtering aur Searching Support ke saath)
 router.get('/', async (req, res) => {
     try {
@@ -34,15 +53,49 @@ router.get('/', async (req, res) => {
 
 // 2. CREATE: Naya Order Add Karo
 router.post('/', async (req, res) => {
-    const order = new Order({
-        serialNumber: req.body.serialNumber,
-        owner: req.body.owner,
-    });
     try {
-        const newOrder = await order.save();
+        const { serialNumber, owner, orderDate } = req.body;
+        const payload = { serialNumber, owner };
+
+        // Policy: Sirf Wahab ke liye duplicate serialNumber allow hain.
+        // Non-Wahab (Emirate Essentials, Ahsan, Habibi Tools) ke darmiyan duplicate mana hain.
+        if (String(owner) !== 'Wahab') {
+            const exists = await Order.exists({ serialNumber, owner: { $ne: 'Wahab' } });
+            if (exists) {
+                return res.status(400).json({ message: 'Duplicate serial not allowed for non-Wahab owners.' });
+            }
+        } else {
+            // Wahab ke liye: sirf wohi serial allow karo jo dashboard (non-Wahab) orders mein already maujood ho
+            const existsInDashboard = await Order.exists({ serialNumber, owner: { $ne: 'Wahab' } });
+            if (!existsInDashboard) {
+                return res.status(400).json({ message: 'Serial not found in dashboard orders. Wahab can only add serials already present in dashboard orders.' });
+            }
+            // Extra safety: ensure any legacy unique index on serialNumber is removed
+            await purgeLegacySerialUnique();
+        }
+
+        // Agar client ne date bheji hai to use karen; warna schema default (Date.now) chalega
+        if (orderDate) {
+            const d = new Date(orderDate);
+            if (!isNaN(d.getTime())) payload.orderDate = d;
+        }
+
+        // Create with retry if duplicate-key arises due to leftover index
+        let newOrder;
+        try {
+            newOrder = await Order.create(payload);
+        } catch (e) {
+            if (String(owner) === 'Wahab' && e && e.code === 11000) {
+                await purgeLegacySerialUnique();
+                newOrder = await Order.create(payload);
+            } else {
+                throw e;
+            }
+        }
+
         res.status(201).json(newOrder);
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        res.status(400).json({ message: err.message || 'Failed to add order' });
     }
 });
 

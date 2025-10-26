@@ -10,6 +10,22 @@ const app = express();
 // 🔑 CRITICAL FIX: DATABASE CONNECTION KO SIRF EK BAAR CALL KIYA GAYA HAI
 // Yeh Vercel par server ko crash hone se bachayega aur 500 error theek karega.
 connectDB(); 
+// Ensure indexes reflect schema (allow duplicates for Wahab only)
+const Order = require('./db/models/OrderModel');
+Order.syncIndexes().catch(err => console.error('Order index sync failed:', (err && err.message) || err));
+
+// Drop legacy unique index on serialNumber if it still exists (blocks Wahab duplicates)
+(async () => {
+  try {
+    const hasLegacy = await Order.collection.indexExists('serialNumber_1');
+    if (hasLegacy) {
+      await Order.collection.dropIndex('serialNumber_1');
+      console.log('Dropped legacy index serialNumber_1');
+    }
+  } catch (e) {
+    console.error('Legacy index cleanup error:', (e && e.message) || e);
+  }
+})();
 // ***************************************************************
 
 // NOTE: Purana Database Middleware (app.use(async (req, res, next) => { ... })) HATA DIYA GAYA HAI.
