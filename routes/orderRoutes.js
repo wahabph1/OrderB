@@ -65,11 +65,7 @@ router.post('/', async (req, res) => {
                 return res.status(400).json({ message: 'Duplicate serial not allowed for non-Wahab owners.' });
             }
         } else {
-            // Wahab ke liye: sirf wohi serial allow karo jo dashboard (non-Wahab) orders mein already maujood ho
-            const existsInDashboard = await Order.exists({ serialNumber, owner: { $ne: 'Wahab' } });
-            if (!existsInDashboard) {
-                return res.status(400).json({ message: 'Serial not found in dashboard orders. Wahab can only add serials already present in dashboard orders.' });
-            }
+            // Wahab ke liye: koi bhi serial allow hai, chahe dashboard (non-Wahab) mein na ho
             // Extra safety: ensure any legacy unique index on serialNumber is removed
             await purgeLegacySerialUnique();
         }

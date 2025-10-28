@@ -72,3 +72,9 @@ app.use('/api/profit', profitRoutes);
 
 // CRITICAL: Express app ko export karna zaroori hai
 module.exports = app;
+
+// Local development: start server if run directly (Vercel will import the app)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+}
