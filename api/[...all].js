@@ -12,13 +12,15 @@ module.exports = (req, res) => {
       'https://order-f-p2r4.vercel.app',
       'https://order-tracking-frontend.vercel.app'
     ]);
+    const acrh = req.headers['access-control-request-headers'];
+    // Default permissive CORS; tighten via Express if needed
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Vary', 'Origin');
     if (origin && (allowRegex.test(origin) || allowList.has(origin))) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     }
+    res.setHeader('Access-Control-Allow-Headers', acrh || 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       return res.end();
