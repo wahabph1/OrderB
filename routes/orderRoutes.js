@@ -196,7 +196,8 @@ router.post('/bulk-status', async (req, res) => {
 
     return res.json({
       requested: serials.length,
-      matched: found.length,n      updated: modified,
+      matched: found.length,
+      updated: modified,
       already: alreadyCount < 0 ? 0 : alreadyCount,
       missing,
       status
