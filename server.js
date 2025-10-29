@@ -58,8 +58,11 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Ensure preflight for any route
-app.options('*', cors(corsOptions));
+// Handle OPTIONS preflight universally without wildcard route pattern (Express v5 safe)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 // ***************************************************************
 
 app.use(express.json()); 
