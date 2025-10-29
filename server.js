@@ -21,25 +21,35 @@ app.use((req, res, next) => {
 });
 
 // ***************************************************************
-// 🔑 CRITICAL FIX: DATABASE CONNECTION KO SIRF EK BAAR CALL KIYA GAYA HAI
-// Yeh Vercel par server ko crash hone se bachayega aur 500 error theek karega.
-connectDB(); 
-// Ensure indexes reflect schema (allow duplicates for Wahab only)
-const Order = require('./db/models/OrderModel');
-Order.syncIndexes().catch(err => console.error('Order index sync failed:', (err && err.message) || err));
-
-// Drop legacy unique index on serialNumber if it still exists (blocks Wahab duplicates)
-(async () => {
-  try {
-    const hasLegacy = await Order.collection.indexExists('serialNumber_1');
-    if (hasLegacy) {
-      await Order.collection.dropIndex('serialNumber_1');
-      console.log('Dropped legacy index serialNumber_1');
-    }
-  } catch (e) {
-    console.error('Legacy index cleanup error:', (e && e.message) || e);
+// DB init (lazy) so serverless cold start won't crash on import
+let dbInitPromise = null;
+async function initDBOnce() {
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      await connectDB();
+      const Order = require('./db/models/OrderModel');
+      try {
+        await Order.syncIndexes();
+      } catch (err) {
+        console.error('Order index sync failed:', (err && err.message) || err);
+      }
+      try {
+        const hasLegacy = await Order.collection.indexExists('serialNumber_1');
+        if (hasLegacy) {
+          await Order.collection.dropIndex('serialNumber_1');
+          console.log('Dropped legacy index serialNumber_1');
+        }
+      } catch (e) {
+        console.error('Legacy index cleanup error:', (e && e.message) || e);
+      }
+    })().catch(err => { dbInitPromise = null; throw err; });
   }
-})();
+  return dbInitPromise;
+}
+const ensureDB = async (_req, _res, next) => {
+  try { await initDBOnce(); } catch (e) { console.error('DB init failed:', (e && e.message) || e); }
+  next();
+};
 // ***************************************************************
 
 // NOTE: Purana Database Middleware (app.use(async (req, res, next) => { ... })) HATA DIYA GAYA HAI.
@@ -88,12 +98,12 @@ app.get('/', (req, res) => {
 
 // Order Routes
 const orderRoutes = require('./routes/orderRoutes'); 
-// Yeh line Vercel routing aur /api/orders path ko handle karti hai.
-app.use('/api/orders', orderRoutes);
+// DB ensured per-request for API routes
+app.use('/api/orders', ensureDB, orderRoutes);
 
 // Profit Calculator Routes
 const profitRoutes = require('./routes/profitRoutes');
-app.use('/api/profit', profitRoutes);
+app.use('/api/profit', ensureDB, profitRoutes);
 
 // CRITICAL: Express app ko export karna zaroori hai
 module.exports = app;
