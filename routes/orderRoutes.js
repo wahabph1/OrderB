@@ -160,6 +160,52 @@ router.post('/bulk', async (req, res) => {
   }
 });
 
+// 2c. BULK STATUS UPDATE: Serial list se status mass update karo (optional owner)
+router.post('/bulk-status', async (req, res) => {
+  try {
+    const { serialNumbers, status, owner } = req.body || {};
+    if (!Array.isArray(serialNumbers)) {
+      return res.status(400).json({ message: 'serialNumbers must be an array of strings' });
+    }
+    const allowed = ['Pending', 'In Transit', 'Delivered', 'Cancelled'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    const serials = serialNumbers.map(s => String(s || '').trim()).filter(Boolean);
+    if (!serials.length) return res.status(400).json({ message: 'No valid serials provided' });
+
+    const filter = { serialNumber: { $in: serials } };
+    if (owner) filter.owner = owner;
+
+    // Find matches to compute detailed stats (updated vs already)
+    const found = await Order.find(filter).select('_id serialNumber owner deliveryStatus').lean();
+    const idsToUpdate = [];
+    for (const doc of found) {
+      if (String(doc.deliveryStatus) !== String(status)) idsToUpdate.push(doc._id);
+    }
+
+    let modified = 0;
+    if (idsToUpdate.length) {
+      const upd = await Order.updateMany({ _id: { $in: idsToUpdate } }, { $set: { deliveryStatus: status } });
+      modified = upd && (upd.modifiedCount ?? upd.nModified ?? 0);
+    }
+
+    const matchedSerials = new Set(found.map(f => String(f.serialNumber)));
+    const missing = serials.filter(s => !matchedSerials.has(s));
+    const alreadyCount = found.length - modified;
+
+    return res.json({
+      requested: serials.length,
+      matched: found.length,n      updated: modified,
+      already: alreadyCount < 0 ? 0 : alreadyCount,
+      missing,
+      status
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message || 'Bulk status update failed' });
+  }
+});
+
 // 3. UPDATE: Order Status/Details Update Karo
 router.put('/:id', async (req, res) => {
     try {
