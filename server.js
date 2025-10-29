@@ -6,6 +6,20 @@ const connectDB = require('./db/db');
 
 const app = express();
 
+// Manual CORS headers (fallback) – ensure headers even if errors occur downstream
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 // ***************************************************************
 // 🔑 CRITICAL FIX: DATABASE CONNECTION KO SIRF EK BAAR CALL KIYA GAYA HAI
 // Yeh Vercel par server ko crash hone se bachayega aur 500 error theek karega.
