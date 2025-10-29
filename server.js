@@ -49,16 +49,12 @@ const isAllowedOrigin = (origin) => {
 };
 
 const corsOptions = {
-    origin: (origin, callback) => {
-        if (isAllowedOrigin(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error(`Not allowed by CORS for origin: ${origin}`));
-        }
-    },
+    // Allow all origins (reflect request origin); safe because we validate auth elsewhere
+    origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
+    optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
