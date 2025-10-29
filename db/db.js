@@ -1,19 +1,19 @@
 // Backend/db/db.js
 const mongoose = require('mongoose');
 
-// Apne Local MongoDB ka URL use karein
-// (Agar aapne port 27017 par 'order_tracker' naam ka database nahi banaya hai, toh yeh use karein)
-// const uri = 'mongodb://localhost:27017/order_tracker'; 
-const uri = 'mongodb+srv://aw599822:xCDMNmoMGLFuy8sU@cluster0.pujyprm.mongodb.net/'; 
+// Prefer environment variables on deploy; fallback to local/dev
+const uri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/order_tracker';
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(uri);
-    console.log('MongoDB connected successfully locally!');
+    await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log('MongoDB connected');
   } catch (error) {
-    console.error('MongoDB connection failed:', error.message);
-    // Agar connection fail ho, toh application exit kar do
-    process.exit(1); 
+    console.error('MongoDB connection failed:', error && error.message ? error.message : error);
+    // Do not exit hard on serverless; throw to surface error
+    throw error;
   }
 };
 
