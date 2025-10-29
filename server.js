@@ -40,9 +40,17 @@ const allowedOrigins = [
     'https://order-f-p2r4.vercel.app'
 ];
 
-app.use(cors({
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true; // non-browser (curl, server-side)
+    if (allowedOrigins.includes(origin)) return true;
+    // Allow any Vercel preview for order-f: e.g., https://order-f-<hash>.vercel.app
+    const re = /^https?:\/\/(order-f(?:-[a-z0-9-]+)?\.vercel\.app|localhost(?::\d+)?)/i;
+    return re.test(origin);
+};
+
+const corsOptions = {
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (isAllowedOrigin(origin)) {
             callback(null, true);
         } else {
             callback(new Error(`Not allowed by CORS for origin: ${origin}`));
@@ -51,7 +59,11 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-}));
+};
+
+app.use(cors(corsOptions));
+// Ensure preflight for any route
+app.options('*', cors(corsOptions));
 // ***************************************************************
 
 app.use(express.json()); 
